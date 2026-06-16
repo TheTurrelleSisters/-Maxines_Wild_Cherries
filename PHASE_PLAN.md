@@ -6,6 +6,44 @@
 
 ---
 
+---
+
+---
+
+## v1.04 — spinReel direction fix: bottom+column-reverse approach
+
+### Problem
+All previous CSS-transition spinReel attempts animated strip.top from 0 to a
+large negative value. This moves the strip UP, making symbols appear to scroll
+UPWARD — wrong direction.
+
+### Fix
+Switched to bottom+column-reverse positioning during spin:
+- strip.style.flexDirection = 'column-reverse' (reverses visual symbol order)
+- strip.style.bottom = startBottom (large positive, strip starts high)
+- Animate bottom: startBottom -> targetBottom (decreasing = strip moves DOWN)
+= symbols enter from TOP, scroll DOWNWARD through window ✓
+
+After transitionend, rest strip is rebuilt using the original top positioning
+(unchanged), so the at-rest display is unaffected.
+
+This approach matches the working preview HTML that Sasha confirmed looked correct.
+
+## v1.04 — Banner black box fix
+
+### Problem
+Banner image (1344x768, aspect ratio 1.75:1) was displaying with black bars
+on both sides because `sizeLayout()` in game.js hardcoded `objectFit='contain'`
+and incorrectly assumed a 4:1 aspect ratio, overriding the CSS.
+
+### Fix
+- `sizeLayout()`: corrected aspect ratio to 1.75 (1344/768), switched to
+  `objectFit='cover'` and `objectPosition='center top'` so the banner fills
+  the full screen width with no black bars, anchored to top so title and
+  Maxine character are always visible.
+- `css/styles.css`: `#hdr-img img` updated to match (cover / center top).
+
+
 ## v1.03 — spinReel direction fix (compositor ordering)
 
 ### Problem
@@ -18,7 +56,7 @@ Same fix as Stray Pups v5.89 applied to MWC game.js.
 Also: bold red payline line applied to css/styles.css.
 
 
-## Current Version: v1.03
+## Current Version: v1.04
 
 ---
 

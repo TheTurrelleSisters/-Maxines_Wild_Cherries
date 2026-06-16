@@ -44,8 +44,8 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;
   -webkit-flex-direction:column;flex-direction:column;background:var(--bg);overflow:hidden}
 
 /* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-#hdr-img{flex-shrink:0;width:100%;overflow:hidden;line-height:0;background:#000}
-#hdr-img img{width:100%;display:block;object-fit:contain;object-position:center center}
+#hdr-img{flex-shrink:0;width:100%;overflow:hidden;line-height:0;}
+#hdr-img img{width:100%;display:block;object-fit:cover;object-position:center top}
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    BINGO SECTION  ~28% â€” compact card + strip underneath

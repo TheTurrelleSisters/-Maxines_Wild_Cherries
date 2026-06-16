@@ -1,4 +1,4 @@
-var CACHE = 'mwc-v103';
+var CACHE = 'mwc-v104';
 var FILES = [
   './',
   './index.html',

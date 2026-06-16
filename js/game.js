@@ -33,13 +33,15 @@ document.getElementById('hdr-img-el').src=IMG_BANNER.src;
 var _lastBingoH=0; var _lastVpw=0; // cached layout values for re-renders
 function sizeLayout(){
   var vph=window.innerHeight; var vpw=window.innerWidth;
-  // Header: banner is exactly 4:1 — derive height from width so it fits perfectly
-  var hdrH=Math.round(vpw/4);
+  // Banner is 1344x768 (1.75:1). Use cover so it fills full width with
+  // no black bars — crop top/bottom as needed, anchored to top so
+  // the title and Maxine character are always visible.
+  var hdrH=Math.round(vpw/1.75);
   var hdrEl=document.getElementById('hdr-img');
   var hdrImg=document.getElementById('hdr-img-el');
   hdrEl.style.height=hdrH+'px';
   hdrImg.style.width='100%'; hdrImg.style.height=hdrH+'px';
-  hdrImg.style.objectFit='contain'; hdrImg.style.objectPosition='center center';
+  hdrImg.style.objectFit='cover'; hdrImg.style.objectPosition='center top';
   // Bingo section: 32% of remaining height (subtract prog-meter if present)
   var progMeterEl=document.getElementById('prog-meter');
   var progMeterH=progMeterEl?progMeterEl.offsetHeight:0;
@@ -1178,81 +1180,101 @@ function spinReel(reelIdx,finalGhost,stopDelay,onStop){
 
   var spinWin=document.getElementById('rw'+reelIdx);
   var spinWinH=spinWin?spinWin.clientHeight:0;
-  var sH=spinWinH>0?symSlotH(spinWinH):Math.round(reel.offsetHeight*SYM_PCT);
-  if(sH<10) sH=SLOT_H;
-  var winH=spinWinH>0?spinWinH:sH*3;
+  var slotH=spinWinH>0?symSlotH(spinWinH):Math.round(reel.offsetHeight*SYM_PCT);
+  if(slotH<10) slotH=SLOT_H;
+  var spinTopOff=spinWinH>0?Math.round(spinWinH/2-slotH*1.5):0;
 
+  // Build spin strip: 54 random symbols + final 5 ghost slots
   var SPIN_SYM_IDS=[0,1,2,3,4,5,6,7];
   var spinSyms=[];
-  for(var i=0;i<24;i++) spinSyms.push(SPIN_SYM_IDS[rng.int(0,7)]);
+  for(var i=0;i<54;i++) spinSyms.push(SPIN_SYM_IDS[rng.int(0,7)]);
   spinSyms.push(finalGhost.above2);
   spinSyms.push(finalGhost.above);
   spinSyms.push(finalGhost.sym);
   spinSyms.push(finalGhost.below);
   spinSyms.push(finalGhost.below2);
 
-  var spinTopOff=Math.round(winH/2-sH*1.5);
-  var centerIdx=spinSyms.length-3;
-  var targetY=spinTopOff-centerIdx*sH;
-
-  /* Set top=0 and build strip BEFORE any class changes or compositor
-     promotion — ensures browser has a clean starting position.
-     spinning class (blur) is added inside the rAF, after top=0 is
-     committed to the layout, so it never interferes with the start. */
   strip.innerHTML='';
   strip.style.height='auto';
-  strip.style.transition='none';
   strip.style.top='0px';
-  spinSyms.forEach(function(id){
-    var slot=buildSlot(id);
-    slot.style.height=sH+'px';
+  strip.style.bottom='';
+  strip.style.flexDirection='';
+  strip.style.transition='none';
+  for(var j=0;j<spinSyms.length;j++){
+    var slot=buildSlot(spinSyms[j]);
+    slot.style.height=slotH+'px';
     slot.style.flex='none';
     strip.appendChild(slot);
-  });
+  }
 
-  requestAnimationFrame(function(){
-    /* First rAF: browser has processed top=0 and the new DOM.
-       Now add blur and kick off second rAF before transitioning. */
-    reel.classList.add('spinning');
-    requestAnimationFrame(function(){
-      /* Second rAF: compositor layer is active with top=0 as baseline.
-         Now apply the transition — animates FROM 0 TO targetY (negative)
-         = strip moves UP = symbols scroll DOWNWARD through window. */
-      strip.style.transition='top '+stopDelay+'ms cubic-bezier(0.22,0.61,0.36,1)';
-      strip.style.top=targetY+'px';
+  // targetY: position strip so payline slot is centered in the window
+  var centerIdx=spinSyms.length-3;
+  var targetY=spinTopOff-centerIdx*slotH;
 
-      function onTransitionEnd(){
-        strip.removeEventListener('transitionend',onTransitionEnd);
+  // Overshoot: strip travels 0.6 slots past target then snaps back
+  var overshootExtra=Math.round(slotH*0.6);
+  var overshootY=targetY-overshootExtra;
+
+  // Phase timing
+  var t1=Math.round(stopDelay*0.75); // phase 1: constant velocity scroll
+  var t2=Math.round(stopDelay*0.90); // phase 2: hold at overshoot
+
+  strip.style.willChange='top';
+  reel.classList.add('spinning');
+
+  var startTime=null;
+  var snapped=false;
+
+  function frame(ts){
+    if(!startTime) startTime=ts;
+    var elapsed=ts-startTime;
+
+    if(elapsed<t1){
+      // Phase 1: constant velocity — full speed from frame 1
+      var p1=elapsed/t1;
+      strip.style.top=(p1*overshootY).toFixed(1)+'px';
+      requestAnimationFrame(frame);
+
+    } else if(elapsed<t2){
+      // Phase 2: hold at overshoot position (brief pause before snap)
+      strip.style.top=overshootY.toFixed(1)+'px';
+      requestAnimationFrame(frame);
+
+    } else {
+      // Phase 3: snap to exact target — mechanical thud
+      if(!snapped){
+        snapped=true;
+        strip.style.top=targetY.toFixed(1)+'px';
         reel.classList.remove('spinning');
         reel.classList.add('stopping');
         sndReelStop();
-        strip.innerHTML='';
-        strip.style.transition='none';
-        var winEl=document.getElementById('rw'+reelIdx);
-        var liveH=winEl?winEl.clientHeight:0;
-        var winH2=liveH>0?liveH:(_reelWinH>0?_reelWinH:SLOT_H*3);
-        var restSlots=[finalGhost.above2,finalGhost.above,finalGhost.sym,
-                       finalGhost.below,finalGhost.below2];
-        strip.style.height=stripTotalH(restSlots,winH2)+'px';
-        strip.style.top=stripTopFor(restSlots,winH2)+'px';
-        for(var si=0;si<5;si++){
-          var rs=buildSlot(restSlots[si]);
-          rs.style.height=slotHFor(restSlots[si],winH2)+'px';
-          rs.style.flex='none';
-          strip.appendChild(rs);
-        }
         setTimeout(function(){
           reel.classList.remove('stopping');
+          strip.innerHTML='';
+          strip.style.willChange='';
+          var winEl=document.getElementById('rw'+reelIdx);
+          var liveH2=winEl?winEl.clientHeight:0;
+          var winH2=liveH2>0?liveH2:(_reelWinH>0?_reelWinH:SLOT_H*3);
+          var restSlots=[finalGhost.above2,finalGhost.above,finalGhost.sym,finalGhost.below,finalGhost.below2];
+          strip.style.height=stripTotalH(restSlots,winH2)+'px';
+          strip.style.top=stripTopFor(restSlots,winH2)+'px';
+          for(var si=0;si<5;si++){
+            var rs=buildSlot(restSlots[si]);
+            rs.style.height=slotHFor(restSlots[si],winH2)+'px';
+            rs.style.flex='none';
+            strip.appendChild(rs);
+          }
           onStop();
         },80);
       }
-      strip.addEventListener('transitionend',onTransitionEnd);
-    });
-  });
+    }
+  }
+  requestAnimationFrame(frame);
 }
 function animateReels(spinData,cb){
   var STOP_DELAYS=[1200,1800,2400];sndSpinStart(); /* 3-rotation spin */
-    var done=0;
+  for(var ri=0;ri<3;ri++) document.getElementById('r'+ri).classList.add('spinning');
+  var done=0;
   function onReelStop(r){return function(){done++;if(done===3) setTimeout(cb,100);};}
   for(var ri2=0;ri2<3;ri2++){(function(r){spinReel(r,spinData.ghosts[r],STOP_DELAYS[r],onReelStop(r));})(ri2);}
 }
