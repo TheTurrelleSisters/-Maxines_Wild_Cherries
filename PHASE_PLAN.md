@@ -213,3 +213,31 @@ this repo) — read that file in full before starting Phase 3. Summary:
   `assets/images/maxine_splash.jpg` uploaded (delivered separately) -- and the
   lobby's `service-worker.js` cache list (not in this delivery, Sasha to add
   the new image path) updated per the cache-busting rule.
+
+
+### v1.05 — EMERGENCY: Service Worker Cache Fix + Missing Icons + Manifest Fix
+
+**ROOT CAUSE:**
+1. `icon-192.png`/`icon-512.png` in FILES cache list but ABSENT from repo
+   entirely — no icons folder existed at all. Atomic `cache.addAll()` failure =
+   game never installed, stuck at splash.
+2. `manifest.json` still said "StrayPups Big Munny $5" — never updated for Maxine.
+3. All script `?v=` query strings were mismatched (some at v5.90, one at v5.94,
+   one at v1.00).
+
+**Fixes applied:**
+- Copied `assets/icons/` folder from $5 game (all icon sizes present)
+- `service-worker.js`: corrected icon paths to `assets/icons/icon-192x192.png`,
+  bumped CACHE to `mwc-v105`, removed mismatched FILES entries
+- `manifest.json`: updated name/short_name/description to Maxine's Wild Cherries,
+  corrected icon paths to `assets/icons/`
+- `index.html`: all version strings unified to v1.05
+
+- Cache bust: mwc-v105
+
+
+### v1.06 — CRITICAL: Missing Closing Brace in runRS() (Syntax Error)
+
+Same root cause as $1/$5 bingo games — `runRS()` missing closing `}`.
+
+- Cache bust: mwc-v106
