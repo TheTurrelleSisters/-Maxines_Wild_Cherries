@@ -1,4 +1,4 @@
-var CACHE = 'mwc-v104';
+var CACHE = 'mwc-v594';
 var FILES = [
   './',
   './index.html',
@@ -18,8 +18,6 @@ var FILES = [
   './assets/symbols/bar2.png',
   './assets/symbols/bar1.png',
   './assets/symbols/cherry.png',
-  './icon-192.png',
-  './icon-512.png',
   './assets/credits_addup.wav',
   './assets/red_spin_music.mp3',
   './assets/ring1.mp3',
