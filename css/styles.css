@@ -151,6 +151,8 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;
     rgba(20,5,0,.30) 84%,
     rgba(20,5,0,.78) 100%);
   border-radius:20px}
+.reel{-webkit-transform:scaleY(-1);transform:scaleY(-1)}
+.reel-slot{-webkit-transform:scaleY(-1);transform:scaleY(-1)}
 .reel-strip{position:absolute;left:0;right:0;top:0;
   display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;
   /* height set by JS in px — no CSS height needed */}

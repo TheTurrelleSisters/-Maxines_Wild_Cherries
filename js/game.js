@@ -331,25 +331,6 @@ function updateBallCallBadge(){
   }
 }
 
-/* fetchServerBallCall — get sequence from DB with local fallback
-   cb(sequence) always fires — never stalls the game.
-   Online:  fetches server sequence, stores in BG.callSeq, sets BG.usingServerBalls=true
-   Offline: generates locally, sets BG.usingServerBalls=false
-*/
-function fetchServerBallCall(cb) {
-  if (typeof Progressive === 'undefined' || !Progressive.isConnected()) {
-    BG.callSeq = genBallCall();
-    BG.usingServerBalls = false;
-    if (cb) cb(BG.callSeq);
-    return;
-  }
-  Progressive.getBallCall(function(seq, isServer) {
-    BG.callSeq = seq;
-    BG.usingServerBalls = isServer;
-    if (cb) cb(BG.callSeq);
-  });
-}
-
 /* refreshServerBallCall — called when ball 75 exhausted or Cover All fires.
    Online:  calls upsert_ball_call → new sequence → all clients get it via realtime.
    Offline: keeps existing sequence if loaded, generates local only if nothing in memory.
@@ -539,8 +520,7 @@ function exitDemo(){
   if(GS.demoTimer){clearTimeout(GS.demoTimer);GS.demoTimer=null;}
   stopPatternShowcase();
   document.getElementById('bingo-col-hdrs').style.display='';
-  _cardNodes=null; // force card rebuild with col-hdrs visible
-  if(!_cardNodes||_cardNodes.length<25) buildBingoCardNodes();
+  buildBingoCardNodes(); // rebuild card with col-hdrs now visible
 }
 function checkDemoTrigger(){
   if(S.bal<=0&&GS.state==='active'){
@@ -608,9 +588,8 @@ function startSilentCaller(){
   stopSilentCaller();
   stopActiveCaller(); // silent and active are mutually exclusive
   /* No-op timer — sequence stays live via realtime subscription */
-  _silentTimer = setInterval(function(){
-    /* Intentionally empty — ballPos not advanced when idle */
-  }, 30000);
+  /* _silentTimer removed — was a 30s no-op interval. Sequence stays
+     live via realtime subscription; no timer needed when idle. */
 }
 function stopSilentCaller(){
   if(_silentTimer){clearInterval(_silentTimer);_silentTimer=null;}
@@ -711,22 +690,23 @@ function stopEntertainmentBalls(){stopActiveCaller();}
 function generateCoverAllSpin(){
   var seq = BG.callSeq;
   if (!seq || seq.length < 75) {
-    /* Fallback: no valid sequence — generate locally */
     seq = genBallCall();
   }
 
-  /* Pool = first 40 balls (pre-called zone). Build card by picking from
-     this pool per column — guaranteed enough numbers per column. */
+  /* Build card from the first 24 numbers in the live ball call sequence,
+     fitting each into its correct B/I/N/G/O column + free space at cell 12.
+     This guarantees all 24 numbers land within the first 40 balls (pre-called
+     zone), so the card is a natural Cover All by design — but pattern wins are
+     determined honestly by the ball-by-ball evaluation below, not forced. */
   var pool = seq.slice(0, 40);
-  var colRanges = COL_RANGES; /* [[1,15],[16,30],[31,45],[46,60],[61,75]] */
+  var colRanges = COL_RANGES;
   var card = [];
   var used = {};
 
-  /* cell layout: card[col*5+row], cell 12 = col2,row2 = free space */
   for (var col = 0; col < 5; col++) {
     var lo = colRanges[col][0];
     var hi = colRanges[col][1];
-    var needed = (col === 2) ? 4 : 5; /* N column has free space */
+    var needed = (col === 2) ? 4 : 5;
     var colNums = [];
     for (var si = 0; si < pool.length && colNums.length < needed; si++) {
       var ball = pool[si];
@@ -735,7 +715,6 @@ function generateCoverAllSpin(){
         used[ball] = true;
       }
     }
-    /* Extremely rare fallback: pool didn't have enough for this column */
     if (colNums.length < needed) {
       for (var n = lo; n <= hi && colNums.length < needed; n++) {
         if (!used[n]) { colNums.push(n); used[n] = true; }
@@ -744,56 +723,61 @@ function generateCoverAllSpin(){
     var rowIdx = 0;
     for (var row = 0; row < 5; row++) {
       if (col === 2 && row === 2) {
-        card[col * 5 + row] = null; /* free space */
+        card[col * 5 + row] = null;
       } else {
         card[col * 5 + row] = colNums[rowIdx++];
       }
     }
   }
 
-  /* Convert column-major to row-major order */
   var ordered = [];
   for (var r = 0; r < 5; r++) {
     for (var c = 0; c < 5; c++) {
       ordered.push(card[c * 5 + r]);
     }
   }
-  ordered[12] = null; /* ensure free space */
+  ordered[12] = null;
 
-  /* Set BG state */
   BG.card = ordered;
   BG.cardNumSet = {};
   for (var ci = 0; ci < 25; ci++) {
     if (ordered[ci] !== null) BG.cardNumSet[ordered[ci]] = ci;
   }
 
-  /* Every card number was drawn from the first 40 balls, so ALL 25 cells
-     (24 numbers + free space) are guaranteed daubed — true Cover All. */
-  BG.matchedCells = {};
-  for (var mi = 0; mi < 25; mi++) BG.matchedCells[mi] = true;
+  /* Natural ball-by-ball evaluation — identical to doBingoSpin().
+     Only patterns genuinely completed within their balls threshold are awarded.
+     The card is engineered so all 24 numbers fall in the first 40 balls,
+     guaranteeing a Cover All naturally, but each pattern must earn its win. */
+  BG.matchedCells = {12: true};
+  var wonPatterns = {};
+  var winPatterns = [];
 
-  /* Ball position: 40 — matches normal pre-called zone convention */
-  BG.callSeq = seq; /* keep using existing WABC sequence */
+  for (var b = 0; b < 40; b++) {
+    var ballN = seq[b];
+    var cellIdx = BG.cardNumSet[ballN];
+    if (cellIdx !== undefined) BG.matchedCells[cellIdx] = true;
+
+    var ballsCalledSoFar = b + 1;
+    for (var pi = 0; pi < BINGO_PATTERNS.length; pi++) {
+      if (wonPatterns[pi]) continue;
+      var pat = BINGO_PATTERNS[pi];
+      if (ballsCalledSoFar > pat.balls) continue;
+      var complete = true;
+      for (var cii = 0; cii < pat.cells.length; cii++) {
+        var cc = pat.cells[cii];
+        if (cc === 12) continue;
+        if (!BG.matchedCells[cc]) { complete = false; break; }
+      }
+      if (complete) { wonPatterns[pi] = true; winPatterns.push(pat); }
+    }
+  }
+
+  BG.callSeq = seq;
   BG.ballPos = 40;
-  /* usingServerBalls stays as-is — do NOT change */
   updateBallCallBadge();
 
   renderBingoCard(BG.card, BG.matchedCells, null);
   renderBallStrip(BG.callSeq, BG.ballPos, BG.cardNumSet);
-
-  /* Evaluate ALL patterns — every cell is daubed, so:
-     - All 20 normal paytable patterns (balls<=40) qualify.
-     - All 3 Cover-All patterns (25/40/75) qualify too, since covering
-       all 25 in <=25 balls also satisfies the <=40 and <=75 thresholds.
-       Per bingo rules these stack together (Progressive + $0.01 Cover
-       All 40 + Cover All 75, sequence ends, full celebration). */
-  var winPatterns = [];
-  for (var pi = 0; pi < BINGO_PATTERNS.length; pi++) {
-    var pat = BINGO_PATTERNS[pi];
-    if (pat.balls > 40 && !pat.isProgressive && pat.reel !== null) continue;
-    if (pat.balls > 75) continue;
-    winPatterns.push(pat);
-  }
 
   BG.winPatterns = winPatterns;
   BG._coverAll1to40 = false;
@@ -980,18 +964,19 @@ function forcedSpinResult(syms){
    - Gap present with no cherry/wild = safe non-win */
 function evalSpin(grid){
   var L=[grid[0][1],grid[1][1],grid[2][1]];
+  // Blank first — most common symbol (~50% of stops), short-circuits fastest
+  if(L[0]===6||L[1]===6||L[2]===6) return{amt:0};
   // Any cherry on any reel = always looks like Open Diamond pay
   if(L[0]===5||L[1]===5||L[2]===5) return{amt:1};
   // Any wild (SP=0 or Progressive=7) on payline = win-looking = rejected.
   // 2x Progressive combos only appear via forcedSpinResult on bingo wins.
   // On no-bingo spins, Progressive symbol must not appear on payline at all.
   if(L[0]===0||L[0]===7||L[1]===0||L[1]===7||L[2]===0||L[2]===7) return{amt:1};
-  // Gap on any reel = safe non-win
-  if(L[0]===6||L[1]===6||L[2]===6) return{amt:0};
   // 3 of a kind
   if(L[0]===L[1]&&L[1]===L[2]) return{amt:1};
-  // All 3 are bars in any mix
-  if(BARS.indexOf(L[0])>=0&&BARS.indexOf(L[1])>=0&&BARS.indexOf(L[2])>=0) return{amt:1};
+  // All 3 are bars in any mix — use hardcoded check (PAY/BARS vars removed)
+  var isBar=function(s){return s===2||s===3||s===4;};
+  if(isBar(L[0])&&isBar(L[1])&&isBar(L[2])) return{amt:1};
   return{amt:0};
 }
 
@@ -1016,7 +1001,6 @@ var IMG_SYM=(function(){
   }
   return m;
 }());
-var _SVG_PLACEHOLDER_REMOVE=null;
 var IMG_PROG_JP=(function(){
   var i=new Image();i.src='assets/symbols/progressive_jackpot.png';
   i.style.cssText='width:95%;height:95%;object-fit:contain;display:block;';
@@ -1055,7 +1039,7 @@ var _spinWatchdog=null; // timestamp of last spin completion — prevents rapid 
 var SLOT_H=120;
 var _reelWinH=0; // cached reel-window clientHeight — set in initReelSlots
 var CURRENT_SYMS=[5,4,1];
-var CURRENT_GHOSTS=[{above:6,sym:5,below:4},{above:6,sym:4,below:3},{above:3,sym:1,below:6}];
+var CURRENT_GHOSTS=[{above2:6,above:6,sym:5,below:4,below2:6},{above2:6,above:6,sym:4,below:3,below2:2},{above2:3,above:6,sym:1,below:6,below2:4}];
 var CPL=[1,2,3];
 
 function fmt(n){return '$'+n.toFixed(2);} /* S.bal/payouts are already in dollars (S.cpl*DENOM, pay[]*DENOM) — do NOT multiply by DENOM again here */
@@ -1272,7 +1256,7 @@ function spinReel(reelIdx,finalGhost,stopDelay,onStop){
   requestAnimationFrame(frame);
 }
 function animateReels(spinData,cb){
-  var STOP_DELAYS=[1200,1800,2400];sndSpinStart(); /* 3-rotation spin */
+  var STOP_DELAYS=[600,1000,1450];sndSpinStart(); /* v5.70 timing */
   for(var ri=0;ri<3;ri++) document.getElementById('r'+ri).classList.add('spinning');
   var done=0;
   function onReelStop(r){return function(){done++;if(done===3) setTimeout(cb,100);};}
@@ -1321,11 +1305,11 @@ function runRS(rsPatterns,cpl,onDone,progCtx){
     var reelSyms=REEL_SYMS[pat.reel]||REEL_SYMS['none'];
     var sr=forcedSpinResult(reelSyms);
     sndBonusSpin();
-    var RS_STOP=[900,1400,1900];var rsDone=0; /* 3-rotation spin */
-    for(var ri3=0;ri3<3;ri3++){
-      (function(rIdx){spinReel(rIdx,sr.ghosts[rIdx],RS_STOP[rIdx],function(){rsDone++;});})(ri3);
-    }
-    setTimeout(function(){
+    var RS_STOP=[500,800,1100];var rsDone=0; /* v5.70 timing */
+    function _onReelDone(){
+      rsDone++;
+      if(rsDone<3) return; /* wait for all 3 reels to finish */
+      setTimeout(function(){
       var payAmt=pat.pay[cpl-1]*DENOM;
       if(pat.isProgressive&&progCtx){
         /* Progressive Jackpot — grand finale. Reels already show 'coverall'
@@ -1398,7 +1382,7 @@ function runRS(rsPatterns,cpl,onDone,progCtx){
       if(payAmt>=50) sndBigWin(); else sndSmallWin();
       // Do not startPatternCycle here — RS manages its own display
       setTimeout(playNext, 1000+rng.int(0,999)); // random 1-2s pause via CSPRNG
-    },500);
+    },120); /* short settle after last reel lands */
   }
   setTimeout(playNext,200);
 }
@@ -1410,17 +1394,6 @@ function doSpin(){
   if(S.bal<S.cpl*DENOM){toast('INSERT CASH TO PLAY');return;}
   if(_reelWinH===0) initReelSlots();
   S.spinning=true;S.bal-=S.cpl*DENOM;
-  /* Watchdog: if spin doesn't complete within 15s (DB hang, exception, etc.)
-     force-unlock the game so the player can continue. */
-  if(_spinWatchdog) clearTimeout(_spinWatchdog);
-  _spinWatchdog=setTimeout(function(){
-    if(S.spinning){
-      console.warn('[Watchdog] Spin stuck >15s — force unlocking');
-      S.spinning=false; setCtrl(true); updUI();
-      var cel=document.getElementById('force-win-cel');
-      if(cel) cel.classList.remove('show');
-    }
-  },15000);
   var _forceJP=false;
   if(typeof Progressive!=='undefined'){
     _forceJP=Progressive.contribute(S.cpl*DENOM);
@@ -1627,14 +1600,21 @@ function renderHelp(){
     '<div class="hln"><span>SP + Prog mix</span> - 2 of a kind visual. Bingo pattern determines pay.</div>'+
     '<div class="hln"><span>Prog Prog Prog</span> - Wide Area Progressive Jackpot (Cover All in 25 balls)</div>';
   b.appendChild(s2);
+  var _hd=(typeof DENOM!=='undefined'?DENOM:1);
+  var _hp={}; /* name -> pay[0]*DENOM */
+  for(var _hi=0;_hi<BINGO_PATTERNS.length;_hi++){
+    var _hpat=BINGO_PATTERNS[_hi];
+    if(!_hpat.isProgressive&&_hpat.reel) _hp[_hpat.name]=(_hpat.pay[0]*_hd);
+  }
+  function _hfmt(n){return '$'+n.toLocaleString();}
   var s3=document.createElement('div');s3.className='hsec';
   s3.innerHTML='<div class="hstl">TOP PATTERNS (BET 1)</div>'+
-    '<div class="hln"><span>Corporal Stripes</span> - $1600 (JACKPOT)</div>'+
-    '<div class="hln"><span>Cross Corners</span> - $640</div>'+
-    '<div class="hln"><span>Pyramid / The Kite</span> - $320</div>'+
-    '<div class="hln"><span>Four Leaf Clover</span> - $200</div>'+
-    '<div class="hln"><span>Double Cross / Arrowhead</span> - $160</div>'+
-    '<div class="hln"><span>Valentine</span> - $50</div>';
+    '<div class="hln"><span>Corporal Stripes</span> - '+_hfmt(_hp['Corporal Stripes']||0)+' (JACKPOT)</div>'+
+    '<div class="hln"><span>Cross Corners</span> - '+_hfmt(_hp['Cross Corners']||0)+'</div>'+
+    '<div class="hln"><span>Pyramid / The Kite</span> - '+_hfmt(_hp['Pyramid']||0)+'</div>'+
+    '<div class="hln"><span>Four Leaf Clover</span> - '+_hfmt(_hp['Four Leaf Clover']||0)+'</div>'+
+    '<div class="hln"><span>Double Cross / Arrowhead</span> - '+_hfmt(_hp['Double Cross']||0)+'</div>'+
+    '<div class="hln"><span>Valentine</span> - '+_hfmt(_hp['Valentine']||0)+'</div>';
   b.appendChild(s3);
 }
 
