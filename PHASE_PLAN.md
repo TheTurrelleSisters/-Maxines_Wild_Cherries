@@ -4,7 +4,21 @@
 
 ---
 
-## Current Version: v1.00 (cache: mwc-v100)
+---
+
+## v1.03 — spinReel direction fix (compositor ordering)
+
+### Problem
+Same as Stray Pups v5.89 — CSS transition spinReel was spinning upward on
+real devices due to compositor layer promotion happening before top=0 was
+committed.
+
+### Fix
+Same fix as Stray Pups v5.89 applied to MWC game.js.
+Also: bold red payline line applied to css/styles.css.
+
+
+## Current Version: v1.03
 
 ---
 
