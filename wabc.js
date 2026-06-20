@@ -289,6 +289,16 @@ var WABC = (function() {
   function onSyncResponse(fn)  { _syncListeners.push(fn); }
   function setPosProvider(fn)  { _posProvider = fn; }
 
+  /* applyLocalNewCall — syncs internal state for Cover All triggering player.
+     Without this, seq_issued_at guard drops all pos events for that player
+     (balls 41-75 freeze after Cover All). */
+  function applyLocalNewCall(sequence, issuedAt) {
+    if (!sequence || sequence.length !== 75) return;
+    _sequence  = sequence;
+    _ballPos   = 0;
+    _issuedAt  = issuedAt || new Date().toISOString();
+  }
+
   return {
     init:          init,
     getSequence:   getSequence,

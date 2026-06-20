@@ -76,7 +76,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;
   -webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;
   font-family:var(--fd);font-weight:700;
   background:linear-gradient(135deg,#f5d878,#d4af37);border:2px solid #8b6914;
-  color:#1a0800;transition:background .15s;
+  color:#1a0800;transition:background .25s;
   box-shadow:inset 0 1px 0 rgba(255,255,200,.4)}
 .bc.free{color:rgba(255,255,255,.6);font-size:8px;
   background:linear-gradient(135deg,#2255cc,#0033aa)}
@@ -164,7 +164,21 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;
 .reel-slot-blank{background:#f5f0e8} /* blank = clean white — unambiguous loss */
 /* center payline slot gets a subtly brighter bg so it reads as the landing zone */
 .reel-slot:nth-child(2){background:#fffdf5;box-shadow:inset 0 0 8px rgba(255,220,100,.12)}
-.reel-slot svg,.reel-slot img{width:95%;height:95%;object-fit:contain;display:block;pointer-events:none}
+.reel-slot svg,.reel-slot img{
+  width:80%;height:80%;
+  object-fit:contain;display:block;pointer-events:none;
+  margin:auto;
+}
+/* Per-symbol size compensation -- each PNG has a very different aspect ratio.
+   bar1=270x130 (very flat), bar2=260x160, bar3=275x225, cherry=260x205,
+   maxine=300x222, seven=230x210, progressive_jackpot=320x379 (portrait).
+   Without compensation, contain scales wide/flat images to a tiny height.
+   data-sym attribute set on .reel-slot by buildSlot() in game.js. */
+.reel-slot[data-sym="1b"] img{width:93%;height:93%;}
+.reel-slot[data-sym="2b"] img{width:88%;height:88%;}
+.reel-slot[data-sym="3b"] img{width:85%;height:85%;}
+.reel-slot[data-sym="chr"] img{width:83%;height:83%;}
+.reel-slot[data-sym="jp"] img{width:70%;height:70%;}
 .reel-slot.flash{-webkit-animation:cf .25s ease infinite alternate;animation:cf .25s ease infinite alternate}
 @-webkit-keyframes cf{from{background:#fffde0}to{background:#ffe060;box-shadow:inset 0 0 14px rgba(255,200,0,.6)}}
 @keyframes cf{from{background:#fffde0}to{background:#ffe060;box-shadow:inset 0 0 14px rgba(255,200,0,.6)}}

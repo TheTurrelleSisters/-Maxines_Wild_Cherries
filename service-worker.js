@@ -1,7 +1,8 @@
-var CACHE = 'mwc-v114';
+var CACHE = 'mwc-v600';
 var FILES = [
   './',
   './index.html',
+  './manifest.json',
   './css/styles.css',
   './js/config.js',
   './js/game.js',
@@ -12,6 +13,7 @@ var FILES = [
   './assets/splash.jpg',
   './assets/banner.jpg',
   './assets/symbols/progressive_jackpot.png',
+  './assets/scott_full.png',
   './assets/symbols/maxine.png',
   './assets/symbols/seven.png',
   './assets/symbols/bar3.png',
