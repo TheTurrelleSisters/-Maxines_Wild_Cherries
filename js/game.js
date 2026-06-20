@@ -469,7 +469,11 @@ function checkPatterns(matchedCells){
     }
     if(ok) matched.push(pat);
   }
-  matched.sort(function(a,b){return b.pay[0]-a.pay[0];});
+  /* DO NOT sort here — return in BINGO_PATTERNS order (ball-completion order).
+     Ascending-pay sort for reel/Red Spin sequence happens in
+     _continueSpinAfterClaim, not here. Sorting descending here caused
+     forcedSpinResult to use the HIGHEST-paying pattern's reel combo
+     on all spins, showing jackpot symbols without a matching bingo win. */
   return matched;
 }
 
@@ -1347,13 +1351,18 @@ function doSpin(){
         if(_wp.isProgressive) _progInWins=true;
         else if(!_wp.reel) _sideAwards.push(_wp);
       }
-      /* Keep winPatterns in first-completed order. Move side awards and
-         progressive to end so basePat is always the first reel-bearing pattern. */
-      if(_progInWins||_sideAwards.length>0){
-        var _reelPats=winPatterns.filter(function(p){return !p.isProgressive&&p.reel;});
-        var _progPats=winPatterns.filter(function(p){return p.isProgressive;});
-        winPatterns=_reelPats.concat(_sideAwards).concat(_progPats);
-      }
+      /* Sort reel-bearing patterns ascending by pay — lowest first.
+         basePat = winPatterns[0] = lowest-paying reel-bearing pattern.
+         This is the PERMANENT design rule: Red Spin builds excitement
+         lowest → highest. forcedSpinResult uses winPatterns[0]'s reel
+         combo — must be the lowest pattern or it shows jackpot symbols
+         without a matching bingo win (Class II integrity violation). */
+      var _reelPats=winPatterns.filter(function(p){return !p.isProgressive&&p.reel;});
+      var _progPats=winPatterns.filter(function(p){return p.isProgressive;});
+      _reelPats.sort(function(a,b){return a.pay[S.cpl-1]-b.pay[S.cpl-1];});
+      /* _sideAwards (Cover All 40, reel:null) kept for accounting — never
+         drives reel stops or Red Spin. _reelPats drives basePat and rsPatterns. */
+      winPatterns=_reelPats.concat(_sideAwards).concat(_progPats);
       spinData=forcedSpinResult(_progInWins?REEL_SYMS['coverall']:(REEL_SYMS[winPatterns[0].reel]||REEL_SYMS['none']));
     }
 
@@ -1402,6 +1411,12 @@ function doSpin(){
       }
 
       // ── Normal (non-progressive) win ──────────────────────────────────────
+      /* Guard: basePat is null when Cover All 40 is the only win.
+         _handleCoverAll() already credited the penny. Skip reel win path. */
+      if(!basePat){
+        _spinDebounce=Date.now();_clearSpinWatchdog();S.spinning=false;setCtrl(true);updUI();
+        return;
+      }
       var baseAmt=basePat.pay[S.cpl-1]*_denom;
       for(var _cwi=0;_cwi<winPatterns.length;_cwi++){
         var _cwp=winPatterns[_cwi];

@@ -266,6 +266,7 @@ var BINGO_PATTERNS = [
      NOTE: Cover All 75 is intentionally NOT here. It is a natural ball
      call end handled by the ball caller, not a bingo evaluation pattern. */
   {name:'Cover All 40', balls:40, pay:[0.01,0.01,0.01], reel:null,
+   isCoverAll:true,
    cells:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]}
 
 ];

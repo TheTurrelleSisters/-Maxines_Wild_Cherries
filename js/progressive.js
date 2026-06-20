@@ -702,7 +702,7 @@ var Progressive = (function () {
       _scheduleFlush();
     }
 
-    return _forceArmed;
+    return false;
   }
 
   function claimForce(onResult) { _claimForceWin(onResult); }
@@ -940,7 +940,6 @@ var Progressive = (function () {
   return {
     init:               init,
     contribute:         contribute,
-    claimForce:         claimForce,
     armAndClaim:        armAndClaim,
     hit:                hit,
     updateLastSpin:     updateLastSpin,
