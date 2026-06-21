@@ -698,3 +698,97 @@ across all three games.
 
 - Cache bust: mwc-v600
 
+
+---
+
+## v1.01 — VERIFIED RE-SYNC with $1/$5 games (post-audit)
+
+**Context:** A side-by-side code audit (not just a PHASE_PLAN read) found that
+the "v6.00 — Full Architecture Sync" entry above describes changes that were
+NOT actually present in the delivered zip's `js/game.js` and `wabc.js`. The
+log entry appears to document an intended change-set that did not make it
+into the packaged build — `_onServerBallPos()` was absent, `_forceJP` /
+`Progressive.contribute()` / `generateCoverAllSpin()` were all still present
+and live, and `WABC.applyLocalNewCall` existed in `wabc.js` but was never
+added to the module's returned public API (so `game.js` could never have
+called it even if it had tried). This entry documents what was verified
+present in the code and fixed in THIS pass.
+
+**Verified bugs found in the delivered v6.0 zip (same root causes as the
+$5 game's audit):**
+
+1. No `_onServerBallPos()` — entertainment phase (balls 41-75) was still
+   running on the old client-side `_activeCallNext` timer instead of the
+   server-driven `WABC.onChange` model.
+2. `WABC.applyLocalNewCall` defined but not exported from `wabc.js`, and
+   never called from `game.js`.
+3. Legacy Force Jackpot path (`_forceJP`, `Progressive.contribute()` return
+   value, `generateCoverAllSpin()`, `Progressive.claimForce()`) still fully
+   wired and reachable on every spin.
+4. `paytable.js`'s player-facing `PAYS_SCREEN` was missing the "Hot Dog"
+   entry (BINGO_PATTERNS itself already had it correctly).
+5. A separate local `var DENOM` redeclared the same value already available
+   globally as `PROG_DENOM` (set in index.html) — redundant dual source of
+   truth for the same number.
+6. **Critical payout bug found in this pass, not previously documented:**
+   Red Spin's `payAmt=pat.pay[cpl-1]` was missing its denom multiplier.
+   Maxine's pre-sync code had this correct (`pat.pay[cpl-1]*DENOM`); the
+   $1-game's equivalent line has the same gap but it's invisible there
+   because PROG_DENOM=1. Restored as `pat.pay[cpl-1]*PROG_DENOM`.
+7. `index.html` shipped the Eruda debug console, was missing `?v=` on the
+   manifest link, had stale "FORCE JACKPOT" win-overlay text, and was
+   missing `webkit-playsinline` on the win video — same hygiene issues
+   found in the $5 game.
+8. `service-worker.js` cache list was missing `js/paytable.js`; cache name
+   needed version-bumping.
+9. Orphaned StrayPups-character art (`scott.png`, `scott_full.png`,
+   `sisters.png`, `sisters_celebrate.png`, `sasha_solo_celebrate.png`) sat
+   unused in `assets/` — confirmed via grep that nothing in the codebase
+   references them. Removed. (`assets/videos/*.mp4` dance clips ARE used —
+   shared win-celebration footage, same files the $1/$5 games use — kept.)
+
+**Fix approach — same as $5 game, adapted for Maxine's real symbol/denom
+differences:**
+
+`js/game.js` was rebuilt from the $1 source of truth (architecture/logic),
+with every genuine Maxine-specific adaptation re-applied on top and
+verified line-by-line against the original: PNG-based `mkSym()`/`buildSlot()`
+with `SYM_DATA_ATTR`/`IMG_SYM`/`IMG_MAXINE` (replacing $1's SVG-drawn
+bar/seven/cherry symbols), 1.75:1 banner aspect ratio with cover/top
+positioning (vs $1's 4:1 contain/center — verified against actual image
+dimensions), `mwc_bal`/`mwc_cpl` localStorage keys, and `PROG_DENOM`-based
+bet arithmetic throughout `doSpin()` (debit, comparison, Progressive.contribute,
+balBefore, all `opLog` bet fields, betval display, both WABC-unavailable
+refund paths) replacing the old standalone `DENOM` variable.
+
+`wabc.js`, `broadcast-init.js`, `js/progressive.js`, `js/operator.js` (branding
+line only), `css/styles.css` (Maxine's per-symbol aspect-ratio CSS and 1.75:1
+header sizing preserved, blur/background already-redundant rule dropped)
+synced from the $1 source of truth the same way as the $5 game.
+
+`js/config.js` — KEPT Maxine's own `VSTOP_TABLE`/`STRIPS` (her own reel math —
+verified byte-identical before/after this pass, never touched); only cleaned
+up stale header comments referencing sections that no longer live in this
+file (BINGO_PATTERNS/SYMBOL_DEFS live in paytable.js, matching the $1/$5 note)
+and removed a dead trailing "BINGO PATTERNS" doc-comment block with no
+actual array after it.
+
+`js/paytable.js` — added the missing "Hot Dog" line to `PAYS_SCREEN`'s
+MID PAYS section. BINGO_PATTERNS/REEL_SYMS were already complete and correct.
+
+`index.html` — rebuilt from $1's structure (correct script load order,
+no Eruda, `?v=` on manifest, generic win text, `webkit-playsinline`) with
+Maxine's branding (`img-maxine`, "MAXINE'S WILD CHERRIES" splash, $2 denom
+display, $100/$500/$1,000/$5,000 bet presets, `PROG_GAME_ID='maxine'`,
+`PROG_DENOM=2.00`) reapplied.
+
+`service-worker.js` — rebuilt from $1's structure with Maxine's actual
+asset list (5 PNG symbol files + progressive_jackpot.png, no scott_full.png).
+
+**NOT changed:** `VSTOP_TABLE`/`STRIPS` reel math, pattern showcase's
+un-denom-multiplied `pat.pay[]` display text (matches $1/$5's existing
+behavior — a pre-existing display quirk shared by all three games, out of
+scope for an architecture-parity pass).
+
+**Version:** `1.01` — CACHE bumped to `mwc-v101`, all `?v=` strings consistent.
+

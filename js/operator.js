@@ -454,7 +454,7 @@ function opRenderSettings(body) {
   verCard.style.cssText = 'background:rgba(212,175,55,.05);border:1px solid rgba(212,175,55,.15);'
     + 'border-radius:8px;padding:10px 14px;margin-bottom:14px;';
   verCard.innerHTML = '<div style="font-size:8px;letter-spacing:2px;color:rgba(212,175,55,.5);">VERSION</div>'
-    + '<div style="font-family:\'Bebas Neue\',Impact,sans-serif;font-size:18px;color:#f5d878;letter-spacing:3px;">Maxine\'s Wild Cherries v1.00</div>'
+    + '<div style="font-family:\'Bebas Neue\',Impact,sans-serif;font-size:18px;color:#f5d878;letter-spacing:3px;">Maxine\'s Wild Cherries v1.01</div>'
     + '<div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:2px;">Class II Bingo Machine</div>';
   body.appendChild(verCard);
 

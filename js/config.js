@@ -1,13 +1,15 @@
 /*
  * ============================================================
- *  StrayPups Big Munny — GAME CONFIGURATION
- *  v2.6 | Edit this file to tune game behaviour.
+ *  Maxine's Wild Cherries — GAME CONFIGURATION
+ *  v1.01 | Edit this file to tune game behaviour.
  *
  *  SECTIONS:
- *    1. SLOT PAY TABLE      — symbol payouts and jackpot amounts
- *    2. VIRTUAL STOP TABLE  — reel symbol probability weights
- *    3. REEL STRIPS         — physical symbol layout on each reel
- *    4. BINGO PATTERNS      — all 21 patterns, thresholds, payouts
+ *    1. VIRTUAL STOP TABLE  — reel symbol probability weights
+ *    2. REEL STRIPS         — physical symbol layout on each reel
+ *
+ *  NOTE: BINGO_PATTERNS, REEL_SYMS, and SYMBOL_DEFS have moved
+ *  to js/paytable.js — that is the single source of truth for
+ *  all pay-related game data.
  *
  *  HOW TO TUNE FREQUENCY:
  *    - Raise a pattern's `balls` value → it hits more often
@@ -21,7 +23,7 @@
 
 // SP-SP-SP jackpot (per bet level)
 
-/* ── 2. VIRTUAL STOP TABLE ───────────────────────────────────────────────────
+/* ── 1. VIRTUAL STOP TABLE ───────────────────────────────────────────────────
    Controls how often each symbol lands on the payline during non-bingo spins.
    Weights must sum to exactly 32768.
    id: symbol ID  |  w: weight (higher = more frequent)
@@ -46,23 +48,5 @@ var STRIPS = [
   [1,6,0,6,5,6,2,6,4,6,2,6,5,6,7,6,4,6,0,6,7,6,5,6,0,6,3,6,7,6,1,6,4,6,5,6,7,6,4,6,0,6,1,6,3,6,7,6,0,6,2,6,4,6,1,6,3,6,7,6,0,6,1,6,5,6,2,6,3,6,0,6,3,6,1,6,5,6,7,6,3,6,2,6,3,6,1,6,2,6,4,6,2,6,4,6,5,6,0,6],
   // Reel 3 — 100 stops: sym/gap interleaved.
   [3,6,4,6,1,6,2,6,7,6,2,6,0,6,4,6,0,6,5,6,3,6,2,6,1,6,4,6,5,6,0,6,3,6,5,6,3,6,0,6,5,6,1,6,3,6,5,6,1,6,0,6,7,6,5,6,3,6,0,6,2,6,7,6,1,6,4,6,3,6,1,6,7,6,4,6,0,6,7,6,4,6,7,6,0,6,2,6,5,6,2,6,4,6,1,6,2,6,7,6]
-];/* ── 4. BINGO PATTERNS ───────────────────────────────────────────────────────
-   Each pattern:
-     name  : display name
-     balls : maximum balls allowed to complete this pattern (THRESHOLD)
-             Raise this number → pattern hits more frequently
-             Lower this number → pattern hits less frequently
-     pay   : [payout_bet1, payout_bet2, payout_bet3]
-     cells : required cell indices on the 5×5 card (0=top-left, 24=bottom-right,
-             reading left-to-right then top-to-bottom; 12=free space, always daubed)
-     reel  : forced reel symbol combo key (see REEL_SYMS in game.js)
-
-   CELL INDEX MAP (5×5 grid, row-major):
-     B  I  N  G  O
-     0  1  2  3  4   ← row 1
-     5  6  7  8  9   ← row 2
-    10 11 12 13 14   ← row 3  (12 = FREE SPACE)
-    15 16 17 18 19   ← row 4
-    20 21 22 23 24   ← row 5
-   ─────────────────────────────────────────────────────────────────────────── */
+];
 
