@@ -831,3 +831,26 @@ scope for an architecture-parity pass).
 |------|--------|
 | `service-worker.js` | `CACHE = 'mwc-v106'` |
 | `index.html` | title, splash-ver, all `?v=` → `1.06` |
+
+---
+
+## 1.07 — CRITICAL FIX: _checkArmedCommand on connect
+
+**Root cause:** Game `progressive.js` never polled `progressive_commands` for
+existing armed rows on connect. `_forceArmed` only set via realtime INSERT
+event. Players who connected after Trigger 2 armed the command missed the
+event entirely — `isForceArmed()` always returned false, guaranteed Lazy-T
+card never generated, jackpot stuck indefinitely.
+
+**Fix:** Added `_checkArmedCommand()` — polls `progressive_commands` for any
+`force_jackpot/armed` row on connect and sets `_forceArmed/_forceCommandId`
+immediately. Also re-checks every 30 seconds via `setInterval` to catch any
+commands armed while the player is mid-session.
+
+**Files changed:** `js/progressive.js`
+
+### Version bump
+| File | Change |
+|------|--------|
+| `service-worker.js` | `CACHE = 'mwc-v107'` |
+| `index.html` | title, splash-ver, all `?v=` → `1.07` |
