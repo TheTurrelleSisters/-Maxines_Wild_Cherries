@@ -868,3 +868,28 @@ commands armed while the player is mid-session.
 |------|--------|
 | `service-worker.js` | `CACHE = 'mwc-v108'` |
 | `index.html` | title, splash-ver, all `?v=` → `1.08` |
+
+---
+
+## v1.05 — coverall → lazyt + none stop fix + Lazy-T comment fix
+- `js/paytable.js`: `'coverall'` → `'lazyt'`; `REEL_SYMS['none']` `[4,2,3]` → `[6,4,6]`; Lazy-T comment corrected
+- `js/game.js`: `REEL_SYMS['coverall']` → `REEL_SYMS['lazyt']`; comment updated
+- Cache: `mwc-v105`
+
+## v1.06 — Trigger 2: server-side threshold + guaranteed Lazy-T card
+- `js/progressive.js`: Added `isForceArmed()`
+- `js/game.js`: Added `_genGuaranteedLazyTCard()` + Trigger 2 check
+- Cache: `mwc-v106`
+
+## v1.07 — CRITICAL FIX: _checkArmedCommand on connect
+- `js/progressive.js`: Added `_checkArmedCommand()` polling on connect and every 30s
+- Cache: `mwc-v107`
+
+## v1.08 — Race condition fix: tryAtomicClaim + _continueDoBingoSpin
+- `js/progressive.js`: Added `tryAtomicClaim(onResult)`
+- `js/game.js`: Added `_continueDoBingoSpin(prevBallPos)`, async Trigger 2 path
+- Cache: `mwc-v108`
+
+## v1.09 — CRITICAL FIX: service-worker non-fatal pre-cache
+- `service-worker.js`: `.catch()` added to `c.addAll(FILES)` — 404s no longer block SW install
+- Cache: `mwc-v109`
